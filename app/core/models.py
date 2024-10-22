@@ -18,6 +18,8 @@ class UserManager(BaseUserManager):
         return user
 
     def create_superuser(self, email, password, **extra_fields):
+        extra_fields.setdefault('role_id', 1)
+        extra_fields.setdefault('name', "Admin")
         user = self.create_user(email, password, **extra_fields)
         user.is_staff = True
         user.is_superuser = True
@@ -46,6 +48,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+
+
 
 # class Patient(models.Model):
 #     name = models.CharField(max_length=100)

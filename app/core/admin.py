@@ -4,3 +4,4 @@ from core.models import *
 admin.site.register(User)
 admin.site.register(Role)
 
+

@@ -34,7 +34,7 @@ def create_user(**params):
 class PublicUserTests(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.role = Role.objects.create(id=1, name='Test Role')
+        self.role = Role.objects.create(id=1, name='Admin')
 
     def test_create_valid_user_success(self):
         payload = {
@@ -137,7 +137,7 @@ class PrivateUserTests(TestCase):
         self.client = APIClient()
         self.user = create_user(email='admin@example.com')
         self.client.force_authenticate(user=self.user)
-        self.role = Role.objects.create(id=1, name='Test Role')
+        self.role = Role.objects.create(id=1, name='Admin')
 
     def test_get_all_users(self):
         user2 = create_user(email='test2@example.com')
