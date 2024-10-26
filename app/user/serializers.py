@@ -21,18 +21,6 @@ class UserSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         # Create the user
         user = get_user_model().objects.create_user(**validated_data)
-
-        if user.role.name == "Admin":
-            group = Group.objects.get(name='Admin')
-        elif user.role.name == "Doctor":
-            group = Group.objects.get(name='Doctor')
-        else:
-            group = Group.objects.get(name='Receptionist')  # Create a default group if needed
-
-        # Add the user to the group (the group will assign the relevant permissions)
-        user.groups.add(group)
-
-        print(user.get_all_permissions())
         return user
 
     def update(self, instance, validated_data):

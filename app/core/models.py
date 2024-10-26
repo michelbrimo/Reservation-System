@@ -1,7 +1,7 @@
 from django.contrib.auth.models import (
     AbstractBaseUser,
     BaseUserManager,
-    PermissionsMixin,
+    PermissionsMixin, Group,
 )
 from django.db import models
 
@@ -14,6 +14,15 @@ class UserManager(BaseUserManager):
         user = self.model(email=self.normalize_email(email), **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
+
+        if user.role.name == "Admin":
+            group = Group.objects.get(name='admins_group')
+        elif user.role.name == "Doctor":
+            group = Group.objects.get(name='doctors_group')
+        else:
+            group = Group.objects.get(name='receptionist_group')  # Create a default group if needed
+
+        user.groups.add(group)
 
         return user
 

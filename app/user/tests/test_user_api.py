@@ -9,8 +9,9 @@ from django.contrib.auth import get_user_model
 from user.serializers import UserSerializer
 
 from core.models import Role
+from django.core.management import call_command
 
-USERS_CREATE_URL = reverse('user:user-create')
+
 USERS_URL = reverse('user:user-list')
 TOKEN_URL = reverse('user:user-token')
 
@@ -24,7 +25,7 @@ def create_user(**params):
         'email': 'test@example.com',
         'password': 'testpass123',
         'name': 'Test name',
-        'role_id': 1,
+        'role_id': Role.objects.get(name='Admin').id,
     }
     user_details.update(params)
 
@@ -34,68 +35,17 @@ def create_user(**params):
 class PublicUserTests(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.role = Role.objects.create(id=1, name='Admin')
+        call_command('seeder')
 
-    def test_create_valid_user_success(self):
-        payload = {
-            'email': 'test@example.com',
-            'password': 'testpass123',
-            'name': 'Test name',
-            'role': self.role.id
-        }
-
-        res = self.client.post(USERS_CREATE_URL, payload, format='json')
-
-        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-        user = get_user_model().objects.get(email=payload['email'])
-        self.assertTrue(user.check_password(payload['password']))
-        self.assertNotIn('password', res.data)
-        self.assertEqual(user.role_id, payload['role'])
-
-    def test_email_taken(self):
-        payload = {
-            'email': 'test@example.com',
-            'password': 'testpass123',
-            'name': 'test name',
-            'role_id': self.role.id
-        }
-
-        create_user(**payload)
-        res = self.client.post(USERS_CREATE_URL, payload, format='json')
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_create_user_short_passwords(self):
-        payload = {
-            'email': 'test@example.com',
-            'password': 1234,
-            'name': 'test name',
-            'role': self.role.id
-        }
-
-        res = self.client.post(USERS_CREATE_URL, payload)
-
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-        user = get_user_model().objects.filter(email=payload['email'])
-        self.assertFalse(user.exists())
-
-    def test_create_user_no_role(self):
-        payload = {
-            'email': 'test@example.com',
-            'password': 1234,
-            'name': 'test name',
-        }
-
-        res = self.client.post(USERS_CREATE_URL, payload)
-
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
-        user = get_user_model().objects.filter(email=payload['email'])
-        self.assertFalse(user.exists())
+    def test_needs_auth(self):
+        res = self.client.get(USERS_URL)
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_create_token(self):
         user_details = {
             'email': 'test@example.com',
             'password': 'testpass123',
-            'role_id': self.role.id
+            'role_id': Role.objects.get(name='Admin').id
         }
         create_user(**user_details)
 
@@ -124,7 +74,7 @@ class PublicUserTests(TestCase):
             'email': 'NoUser@example.com',
             'password': '',
             'name': 'Test name',
-            'role': self.role.id
+            'role': Role.objects.get(name='Admin').id
         }
         res = self.client.post(TOKEN_URL, payload)
 
@@ -134,10 +84,101 @@ class PublicUserTests(TestCase):
 
 class PrivateUserTests(TestCase):
     def setUp(self):
+        call_command('seeder')
         self.client = APIClient()
-        self.user = create_user(email='admin@example.com')
+        self.user = create_user(email='admin@example.com', role_id=Role.objects.get(name='Admin').id)
         self.client.force_authenticate(user=self.user)
-        self.role = Role.objects.create(id=1, name='Admin')
+
+    def _change_client_user(self, **params):
+        self.not_admin_user = create_user(**params)
+        self.client.force_authenticate(user=self.not_admin_user)
+
+    def test_doctor_no_permission_create(self):
+        self._change_client_user(email='NotAdmin@example.com', role_id=Role.objects.get(name='Doctor').id)
+
+        payload = {
+            'email': 'test@example.com',
+            'password': 'testpass123',
+            'name': 'Test name',
+            'role': Role.objects.get(name='Doctor').id,
+        }
+
+        res = self.client.post(USERS_URL, payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        user = get_user_model().objects.filter(email=payload['email'])
+        self.assertFalse(user.exists())
+
+    def test_receptionist_no_permission_create(self):
+        self._change_client_user(email='NotAdmin@example.com', role_id=Role.objects.get(name='Receptionist').id)
+
+        payload = {
+            'email': 'test@example.com',
+            'password': 'testpass123',
+            'name': 'Test name',
+            'role': Role.objects.get(name='Doctor').id,
+        }
+
+        res = self.client.post(USERS_URL, payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        user = get_user_model().objects.filter(email=payload['email'])
+        self.assertFalse(user.exists())
+
+
+    def test_create_valid_user_success(self):
+        payload = {
+            'email': 'test@example.com',
+            'password': 'testpass123',
+            'name': 'Test name',
+            'role': Role.objects.get(name='Doctor').id,
+        }
+
+        res = self.client.post(USERS_URL, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        user = get_user_model().objects.get(email=payload['email'])
+        self.assertTrue(user.check_password(payload['password']))
+        self.assertNotIn('password', res.data)
+        self.assertEqual(user.role_id, payload['role'])
+
+    def test_email_taken(self):
+        payload = {
+            'email': 'test@example.com',
+            'password': 'testpass123',
+            'name': 'test name',
+            'role_id': Role.objects.get(name='Admin').id
+        }
+
+        create_user(**payload)
+        res = self.client.post(USERS_URL, payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_user_short_passwords(self):
+        payload = {
+            'email': 'test@example.com',
+            'password': 1234,
+            'name': 'test name',
+            'role': Role.objects.get(name='Admin').id
+        }
+
+        res = self.client.post(USERS_URL, payload)
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        user = get_user_model().objects.filter(email=payload['email'])
+        self.assertFalse(user.exists())
+
+    def test_create_user_no_role(self):
+        payload = {
+            'email': 'test@example.com',
+            'password': 1234,
+            'name': 'test name',
+        }
+
+        res = self.client.post(USERS_URL, payload)
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        user = get_user_model().objects.filter(email=payload['email'])
+        self.assertFalse(user.exists())
+
 
     def test_get_all_users(self):
         user2 = create_user(email='test2@example.com')
@@ -145,7 +186,8 @@ class PrivateUserTests(TestCase):
         res = self.client.get(USERS_URL)
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(res.data), 2)
+        # 3 Users (the Client User, the New User and the Admin)
+        self.assertEqual(len(res.data), 3)
 
         serializer1 = UserSerializer(self.user)
         serializer2 = UserSerializer(user2)
@@ -192,7 +234,7 @@ class PrivateUserTests(TestCase):
             'email': "NewEmail@example.com",
             'password': "NewPass@123",
             'name': "New name",
-            'role': self.role.id
+            'role': Role.objects.get(name='Admin').id
         }
 
         res = self.client.put(user_detail_url(other_user.id), payload)

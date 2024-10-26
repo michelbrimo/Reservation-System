@@ -2,16 +2,19 @@ from datetime import date
 
 from django.test import TestCase
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
+
 
 from core import models
+from core.models import Role
 
 
-def create_patient(**kwargs):
-    return models.Patient.objects.create(**kwargs)
+# def create_patient(**kwargs):
+#     return models.Patient.objects.create(**kwargs)
 
 class ModelTests(TestCase):
     def setUp(self):
-        self.role = models.Role.objects.create(id=1, name='Admin')
+        call_command('seeder')
 
     def test_create_user_with_email_successful(self):
         email = 'test@example.com'
@@ -19,12 +22,12 @@ class ModelTests(TestCase):
         user = get_user_model().objects.create_user(
             email=email,
             password=password,
-            role_id=self.role.id
+            role_id=Role.objects.get(name='Admin').id,
         )
 
         self.assertEqual(user.email, email)
         self.assertTrue(user.check_password(password))
-        self.assertEqual(user.role_id, self.role.id)
+        self.assertEqual(user.role_id, Role.objects.get(name='Admin').id)
 
     def test_new_user_email_normalized(self):
         emails = [
@@ -38,7 +41,7 @@ class ModelTests(TestCase):
             user = get_user_model().objects.create_user(
                 email=email,
                 password=password,
-                role_id=self.role.id
+                role_id=Role.objects.get(name='Admin').id
             )
             self.assertEqual(user.email, expected)
 
@@ -47,14 +50,14 @@ class ModelTests(TestCase):
             get_user_model().objects.create_user(
                 email='',
                 password='testpass123',
-                role_id=self.role.id
+                role_id=Role.objects.get(name='Admin').id
             )
 
     def test_create_superuser(self):
         user = get_user_model().objects.create_superuser(
             email='test@example.com',
             password='testpass123',
-            role_id=self.role.id
+            role_id=Role.objects.get(name='Admin').id
         )
         self.assertTrue(user.is_superuser)
         self.assertTrue(user.is_staff)
