@@ -1,11 +1,9 @@
 from django.contrib.auth import get_user_model, authenticate
-from django.contrib.auth.models import Permission
-from django.contrib.contenttypes.models import ContentType
+
 from rest_framework import serializers
-from django.contrib.auth.models import Group
 
 
-from core.models import User, Role
+from core.models import User
 
 
 class UserSerializer(serializers.ModelSerializer):

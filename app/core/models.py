@@ -37,6 +37,16 @@ class UserManager(BaseUserManager):
         return user
 
 
+class Patient(models.Model):
+    name = models.CharField(max_length=100)
+    relative = models.CharField(max_length=100, blank=True, null=True)
+    relative_name = models.CharField(max_length=100, blank=True, null=True)
+    phone_number = models.CharField(max_length=20)
+    birth_date = models.DateField()
+
+    def __str__(self):
+        return self.name
+
 class Role(models.Model):
     name = models.CharField(max_length=255)
 
@@ -51,6 +61,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     role = models.ForeignKey(Role, on_delete=models.CASCADE)
 
+
     objects = UserManager()
 
     USERNAME_FIELD = 'email'
@@ -58,16 +69,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.email
 
-
-
-# class Patient(models.Model):
-#     name = models.CharField(max_length=100)
-#     relative = models.CharField(max_length=100, blank=True, null=True)
-#     relative_name = models.CharField(max_length=100, blank=True, null=True)
-#     phone_number = models.CharField(max_length=20)
-#     birth_date = models.DateField()
-#
-#
 # class Appointment(models.Model):
 #     pass
 

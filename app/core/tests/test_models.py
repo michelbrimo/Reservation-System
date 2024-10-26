@@ -9,14 +9,11 @@ from core import models
 from core.models import Role
 
 
-# def create_patient(**kwargs):
-#     return models.Patient.objects.create(**kwargs)
-
 class ModelTests(TestCase):
     def setUp(self):
         call_command('seeder')
 
-    def test_create_user_with_email_successful(self):
+    def test_create_user_with_email_successfully(self):
         email = 'test@example.com'
         password = 'testpass123'
         user = get_user_model().objects.create_user(
@@ -63,22 +60,16 @@ class ModelTests(TestCase):
         self.assertTrue(user.is_staff)
 
 
+    def test_create_patient_successfully(self):
+        payload = {
+            'name': 'test name',
+            'relative': 'father',
+            'relative_name': 'test relative name',
+            'phone_number': '0123456789',
+            'birth_date': date(2015, 7, 23)
+        }
 
+        res = models.Patient.objects.create(**payload)
 
-# class ModelTests(TestCase):
-#     def test_create_patient(self):
-#         payload = {
-#             'name': 'test name',
-#             'relative': 'father',
-#             'relative_name': 'test relative name',
-#             'phone_number': '0123456789',
-#             'birth_date': date(2015, 7, 23)
-#         }
-#
-#         res = models.Patient.objects.create(**payload)
-#
-#         self.assertEqual(res.name, payload['name'])
-#         self.assertEqual(res.relative, payload['relative'])
-#         self.assertEqual(res.relative_name, payload['relative_name'])
-#         self.assertEqual(res.phone_number, payload['phone_number'])
-#         self.assertEqual(res.birth_date, payload['birth_date'])
+        for key in payload.keys():
+            self.assertEqual(payload[key], getattr(res, key))

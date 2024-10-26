@@ -1,5 +1,5 @@
 from django.contrib.auth.models import Permission
-from rest_framework import viewsets, generics, mixins, permissions
+from rest_framework import viewsets, permissions
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.views import ObtainAuthToken
 

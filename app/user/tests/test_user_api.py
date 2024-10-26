@@ -37,7 +37,7 @@ class PublicUserTests(TestCase):
         self.client = APIClient()
         call_command('seeder')
 
-    def test_needs_auth(self):
+    def test_crud_users_auth_required(self):
         res = self.client.get(USERS_URL)
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -92,37 +92,6 @@ class PrivateUserTests(TestCase):
     def _change_client_user(self, **params):
         self.not_admin_user = create_user(**params)
         self.client.force_authenticate(user=self.not_admin_user)
-
-    def test_doctor_no_permission_create(self):
-        self._change_client_user(email='NotAdmin@example.com', role_id=Role.objects.get(name='Doctor').id)
-
-        payload = {
-            'email': 'test@example.com',
-            'password': 'testpass123',
-            'name': 'Test name',
-            'role': Role.objects.get(name='Doctor').id,
-        }
-
-        res = self.client.post(USERS_URL, payload, format='json')
-        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
-        user = get_user_model().objects.filter(email=payload['email'])
-        self.assertFalse(user.exists())
-
-    def test_receptionist_no_permission_create(self):
-        self._change_client_user(email='NotAdmin@example.com', role_id=Role.objects.get(name='Receptionist').id)
-
-        payload = {
-            'email': 'test@example.com',
-            'password': 'testpass123',
-            'name': 'Test name',
-            'role': Role.objects.get(name='Doctor').id,
-        }
-
-        res = self.client.post(USERS_URL, payload, format='json')
-        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
-        user = get_user_model().objects.filter(email=payload['email'])
-        self.assertFalse(user.exists())
-
 
     def test_create_valid_user_success(self):
         payload = {
@@ -244,3 +213,56 @@ class PrivateUserTests(TestCase):
         other_user.refresh_from_db()
         serializer = UserSerializer(other_user)
         self.assertEqual(res.data, serializer.data)
+
+    def test_create_user_permission_denied(self):
+        self._change_client_user(email='NotAdmin@example.com', role_id=Role.objects.get(name='Doctor').id)
+
+        payload = {
+            'email': 'test@example.com',
+            'password': 'testpass123',
+            'name': 'Test name',
+            'role': Role.objects.get(name='Doctor').id,
+        }
+
+        res = self.client.post(USERS_URL, payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        user = get_user_model().objects.filter(email=payload['email'])
+        self.assertFalse(user.exists())
+
+    def test_update_user_permission_denied(self):
+        self._change_client_user(email='NotAdmin@example.com', role_id=Role.objects.get(name='Doctor').id)
+
+        payload = {
+            'name': 'New Name',
+        }
+
+        user = create_user()
+
+        res = self.client.patch(user_detail_url(user.id), payload)
+
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertNotEqual(user.name, payload['name'])
+
+    def test_delete_user_permission_denied(self):
+        self._change_client_user(email='NotAdmin@example.com', role_id=Role.objects.get(name='Doctor').id)
+
+        user = create_user()
+
+        res = self.client.delete(user_detail_url(user.id))
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        user = get_user_model().objects.filter(id=user.id)
+        self.assertTrue(user.exists())
+
+    def test_view_user_permission_denied(self):
+        self._change_client_user(email='NotAdmin@example.com', role_id=Role.objects.get(name='Doctor').id)
+        res = self.client.get(USERS_URL)
+
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_view_user_details_permission_denied(self):
+        self._change_client_user(email='NotAdmin@example.com', role_id=Role.objects.get(name='Doctor').id)
+        user = create_user()
+
+        res = self.client.get(user_detail_url(user.id))
+
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
