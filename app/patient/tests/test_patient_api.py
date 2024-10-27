@@ -30,6 +30,18 @@ def create_user(**params):
 
     return get_user_model().objects.create_user(**user_details)
 
+def create_patient(**params):
+    patient_details = {
+        'name': 'patient name',
+        'relative': 'father',
+        'relative_name': 'test relative name',
+        'phone_number': '0987654321',
+        'birth_date': date(2015, 7, 23)
+    }
+
+    patient_details.update(params)
+
+    return Patient.objects.create(**patient_details)
 
 class PublicPatientTest(TestCase):
     def setUp(self):
@@ -100,3 +112,110 @@ class PrivatePatientTest(TestCase):
 
         patient = Patient.objects.get(id=res.data['id'])
         self._check_patient_data(patient, payload)
+
+    def test_get_all_patients_successfully(self):
+        patient1 = create_patient()
+        patient2 = create_patient()
+
+        res = self.client.get(PATIENT_URL)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data), 2)
+
+        serializer1 = PatientSerializer(patient1)
+        serializer2 = PatientSerializer(patient2)
+
+        self.assertIn(serializer1.data, res.data)
+        self.assertIn(serializer2.data, res.data)
+
+    def test_get_patient_details(self):
+        patient = create_patient()
+
+        res = self.client.get(patient_detail_url(patient.id))
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        serializer = PatientSerializer(patient)
+
+        self.assertEqual(serializer.data, res.data)
+
+    def test_partially_update_patient_successfully(self):
+        patient = create_patient(name='old name')
+
+        payload = {
+            'name': 'new name',
+
+        }
+        res = self.client.patch(patient_detail_url(patient.id), payload)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        patient.refresh_from_db()
+        serializer = PatientSerializer(patient)
+
+        self.assertEqual(patient.name, payload['name'])
+        self.assertEqual(serializer.data, res.data)
+
+    def test_fully_update_patient_successfully(self):
+        patient = create_patient(name='old name')
+
+        payload = {
+            'name': 'new name',
+            'relative': 'new relative',
+            'relative_name': 'new relative name',
+            'phone_number': '888888888',
+            'birth_date': date(2001, 12, 12)
+        }
+
+        res = self.client.put(patient_detail_url(patient.id), payload)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        patient.refresh_from_db()
+        serializer = PatientSerializer(patient)
+
+        self.assertEqual(res.data, serializer.data)
+
+    def test_update_patient_blank_name_failed(self):
+        patient = create_patient()
+
+        payload = {
+            'name': '',
+        }
+
+        res = self.client.patch(patient_detail_url(patient.id), payload)
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_update_patient_no_relative_success(self):
+        patient = create_patient()
+
+        payload = {
+            'name': 'new name',
+            'relative': '',
+            'relative_name': '',
+            'phone_number': 888888888,
+            'birth_date': date(2001, 12, 12)
+        }
+
+        res = self.client.put(patient_detail_url(patient.id), payload)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        patient.refresh_from_db()
+        serializer = PatientSerializer(patient)
+        self.assertEqual(res.data, serializer.data)
+
+
+
+
+    def test_delete_patient_successfully(self):
+        patient = create_patient()
+
+        res = self.client.delete(patient_detail_url(patient.id))
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(Patient.objects.all().count(), 0)
+
+
+
+
+
+

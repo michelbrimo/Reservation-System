@@ -11,3 +11,4 @@ class PatientViewSet(viewsets.ModelViewSet):
     queryset = Patient.objects.all().order_by('id')
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
+
