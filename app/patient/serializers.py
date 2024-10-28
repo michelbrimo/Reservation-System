@@ -15,3 +15,8 @@ class PatientSerializer(serializers.ModelSerializer):
             'relative_name': {'required': False},
         }
 
+    def validate_phone_number(self, value):
+        if not value.isdigit() or len(value) < 10:
+            raise serializers.ValidationError("Please enter a valid phone number.")
+        return value
+

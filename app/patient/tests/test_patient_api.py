@@ -15,6 +15,7 @@ from patient.serializers import PatientSerializer
 
 PATIENT_URL = reverse('patient:patient-list')
 
+
 def patient_detail_url(patient_id):
     return reverse('patient:patient-detail', args=[patient_id])
 
@@ -30,6 +31,7 @@ def create_user(**params):
 
     return get_user_model().objects.create_user(**user_details)
 
+
 def create_patient(**params):
     patient_details = {
         'name': 'patient name',
@@ -43,6 +45,7 @@ def create_patient(**params):
 
     return Patient.objects.create(**patient_details)
 
+
 class PublicPatientTest(TestCase):
     def setUp(self):
         self.client = APIClient()
@@ -51,11 +54,12 @@ class PublicPatientTest(TestCase):
         res = self.client.get(PATIENT_URL)
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
 
+
 class PrivatePatientTest(TestCase):
     def setUp(self):
         call_command('seeder')
         self.client = APIClient()
-        self.user = create_user()
+        self.user = create_user(email='admin@example.com', role_id=Role.objects.get(name='Admin').id)
         self.client.force_authenticate(self.user)
 
     def _check_patient_data(self, patient, payload):
@@ -67,6 +71,22 @@ class PrivatePatientTest(TestCase):
             else:
                 self.assertEqual(payload[key], serializer.data[key])
 
+    def test_crud_permission_denied(self):
+        doctor = create_user(role_id=Role.objects.get(name='Doctor').id)
+        self.client.force_authenticate(doctor)
+
+        payload = {
+            'name': 'patient name',
+            'relative': 'father',
+            'relative_name': 'test relative name',
+            'phone_number': '0987654321',
+            'birth_date': date(2015, 7, 23)
+        }
+
+        res = self.client.post(PATIENT_URL, payload)
+
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(Patient.objects.all().count(), 0)
 
     def test_create_patient_successfully(self):
         payload = {
@@ -83,13 +103,26 @@ class PrivatePatientTest(TestCase):
         patient = Patient.objects.get(id=res.data['id'])
         self._check_patient_data(patient, payload)
 
-
     def test_create_patient_blank_name_failed(self):
         payload = {
             'name': '',
             'relative': 'father',
             'relative_name': 'test relative name',
             'phone_number': '0123456789',
+            'birth_date': date(2015, 7, 23)
+        }
+
+        res = self.client.post(PATIENT_URL, payload)
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Patient.objects.all().count(), 0)
+
+    def test_create_patient_invalid_number(self):
+        payload = {
+            'name': 'test name',
+            'relative': 'father',
+            'relative_name': 'test relative name',
+            'phone_number': 'not a number',
             'birth_date': date(2015, 7, 23)
         }
 
@@ -191,7 +224,7 @@ class PrivatePatientTest(TestCase):
             'name': 'new name',
             'relative': '',
             'relative_name': '',
-            'phone_number': 888888888,
+            'phone_number': '0934621717',
             'birth_date': date(2001, 12, 12)
         }
 
@@ -203,8 +236,19 @@ class PrivatePatientTest(TestCase):
         serializer = PatientSerializer(patient)
         self.assertEqual(res.data, serializer.data)
 
+    def test_update_patient_invalid_phone_number(self):
+        patient = create_patient()
 
+        payload = {
+            'name': 'new name',
+            'relative': '',
+            'relative_name': '',
+            'phone_number': 'not a number',
+            'birth_date': date(2001, 12, 12)
+        }
 
+        res = self.client.put(patient_detail_url(patient.id), payload)
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_delete_patient_successfully(self):
         patient = create_patient()
@@ -213,9 +257,3 @@ class PrivatePatientTest(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(Patient.objects.all().count(), 0)
-
-
-
-
-
-
