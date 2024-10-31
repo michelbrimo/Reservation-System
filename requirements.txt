@@ -2,3 +2,6 @@ django
 djangorestframework
 drf-spectacular
 
+pandas
+openpyxl
+odfpy

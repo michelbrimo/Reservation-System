@@ -23,3 +23,6 @@ class PatientDetailSerializer(PatientSerializer):
             raise serializers.ValidationError("Please enter a valid phone number.")
         return value
 
+class ImportPatientSerializer(serializers.Serializer):
+    file = serializers.FileField()
+

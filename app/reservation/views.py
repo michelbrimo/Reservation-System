@@ -3,13 +3,11 @@ from datetime import date
 from django.contrib.auth.models import Permission
 from rest_framework import viewsets, permissions
 from rest_framework.authentication import TokenAuthentication
-from rest_framework.authtoken.views import ObtainAuthToken
-
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.settings import api_settings
 
 from core.models import Reservation
 from reservation.serializers import ReservationSerializer, ReservationDetailSerializer
+
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
 
 
 def _check_permissions(request, code_name):
@@ -20,6 +18,22 @@ def _check_permissions(request, code_name):
     return True
 
 
+@extend_schema_view(
+    list=extend_schema(
+        parameters=[
+            OpenApiParameter(
+                'date',
+                OpenApiTypes.DATE,
+                description='Filter items by date.'
+            ),
+            OpenApiParameter(
+                'doctor',
+                OpenApiTypes.STR,
+                description='Filter items by doctor id.'
+            ),
+        ]
+    )
+)
 class ReservationViewSet(viewsets.ModelViewSet):
     serializer_class = ReservationDetailSerializer
     queryset = Reservation.objects.all().order_by('id')
@@ -46,8 +60,17 @@ class ReservationViewSet(viewsets.ModelViewSet):
                                                                                       'view_his_reservations'):
             if self.action == 'list':
                 reservation_date = self.request.query_params.get('date', None)
+                doctor_id = self.request.query_params.get('doctor', None)
                 queryset = self.queryset
-                queryset = queryset.filter(date__exact=reservation_date)
+
+                if reservation_date is not None:
+                    queryset = queryset.filter(date__exact=reservation_date)
+                else:
+                    queryset = queryset.filter(date__exact=date.today())
+
+                if doctor_id is not None:
+                    queryset = queryset.filter(doctor_id=doctor_id)
+
                 if _check_permissions(self.request, 'view_his_reservations'):
                     queryset = queryset.filter(doctor=self.request.user.id)
 

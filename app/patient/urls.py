@@ -1,14 +1,15 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
-from . import views
+from patient import views
 
 app_name = 'patient'
 
 router = DefaultRouter()
 
-router.register('patients', views.PatientViewSet)
+router.register('', views.PatientViewSet)
 
 urlpatterns = [
+    path('import_patient/', views.ImportAPIView.as_view(), name='import-patient'),
     path('', include(router.urls)),
 ]

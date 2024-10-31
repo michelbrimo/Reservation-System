@@ -6,9 +6,10 @@ from . import views
 app_name = 'user'
 
 router = DefaultRouter()
-router.register('users', views.UserViewSet)
+router.register('', views.UserViewSet)
 
 urlpatterns = [
+    path('create_token/', views.CreateTokenView.as_view(), name='user-token'),
     path('', include(router.urls)),
-    path('user-token/', views.CreateTokenView.as_view(), name='user-token'),
+
 ]

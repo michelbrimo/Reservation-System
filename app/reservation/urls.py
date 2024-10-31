@@ -6,7 +6,7 @@ from . import views
 app_name = 'reservation'
 
 router = DefaultRouter()
-router.register('reservations', views.ReservationViewSet)
+router.register('', views.ReservationViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),

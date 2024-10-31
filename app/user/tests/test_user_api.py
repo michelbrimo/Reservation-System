@@ -190,6 +190,37 @@ class PrivateUserTests(TestCase):
         self.assertIn(serializer1.data, res.data)
         self.assertIn(serializer2.data, res.data)
 
+    def test_get_users_based_on_role_id(self):
+        doctor1 = create_user(email='doctor@example.com', role=Role.objects.get(name='Doctor'))
+        doctor2 = create_user(email='doctor2@example.com', role=Role.objects.get(name='Doctor'))
+        admin2 = create_user(email='admin2@example.com', role=Role.objects.get(name='Admin'))
+
+        res = self.client.get(USERS_URL, {'role': doctor1.role.name})
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        self.assertEqual(len(res.data), 2)
+
+        doctor1_serializer = UserSerializer(doctor1)
+        doctor2_serializer = UserSerializer(doctor2)
+        admin1_serializer = UserSerializer(self.user)
+        admin2_serializer = UserSerializer(admin2)
+
+        self.assertIn(doctor1_serializer.data, res.data)
+        self.assertIn(doctor2_serializer.data, res.data)
+
+        self.assertNotIn(admin1_serializer.data, res.data)
+        self.assertNotIn(admin2_serializer.data, res.data)
+
+    def test_get_users_name_starts_with_x(self):
+        create_user(email='doctor@example.com', role=Role.objects.get(name='Doctor'), name='Lara')
+        create_user(email='receptionist@example.com', role=Role.objects.get(name='Receptionist'), name='Laman')
+
+        res = self.client.get(USERS_URL, {'name': 'La'})
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data), 2)
+
     def test_get_my_profile(self):
         res = self.client.get(user_detail_url(self.user.id))
         serializer = UserDetailSerializer(self.user)

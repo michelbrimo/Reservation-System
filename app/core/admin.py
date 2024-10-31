@@ -2,6 +2,7 @@ from django.contrib import admin
 from core.models import *
 
 admin.site.register(User)
-admin.site.register(Role)
+admin.site.register(Patient)
+admin.site.register(Reservation)
 
 

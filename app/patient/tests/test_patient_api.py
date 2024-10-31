@@ -162,6 +162,15 @@ class PrivatePatientTest(TestCase):
         self.assertIn(serializer1.data, res.data)
         self.assertIn(serializer2.data, res.data)
 
+    def test_get_patients_based_on_name(self):
+        create_patient(name='Alma')
+        create_patient(name='Alice')
+        create_patient(name='Bob')
+
+        res = self.client.get(PATIENT_URL, {'name': 'Al'})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data), 2)
+
     def test_get_patient_details(self):
         patient = create_patient()
 

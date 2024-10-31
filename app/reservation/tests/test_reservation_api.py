@@ -194,6 +194,17 @@ class PrivateReservationAPITests(TestCase):
         self.assertNotIn(serializer2.data, res.data)
         self.assertNotIn(serializer3.data, res.data)
 
+    def test_get_doctors_reservations(self):
+        other_doctor = create_user(email='doctor2@example.com', role=Role.objects.get(name='Doctor'))
+
+        create_reservation(date=date(2022, 5, 17), doctor=self.doctor, patient=self.patient)
+        create_reservation(date=date(2022, 5, 17), doctor=other_doctor, patient=self.patient)
+        create_reservation(date=date(2022, 5, 17), doctor=self.doctor, patient=self.patient)
+
+        res = self.client.get(RESERVATION_URL, {'date': date(2022, 5, 17), 'doctor': self.doctor.id})
+        self.assertEqual(len(res.data), 2)
+
+
     def test_get_reservation_details(self):
         reservation = create_reservation(date=date(2022, 5, 17), doctor=self.doctor)
 
