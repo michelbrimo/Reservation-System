@@ -1,15 +1,18 @@
 from rest_framework import serializers
 
-from django.contrib.auth import get_user_model
-
 from core.models import Patient
 
 
 class PatientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Patient
-        fields = ['id', 'name', 'relative_name', 'relative', 'birth_date', 'phone_number']
+        fields = ['id', 'name', 'birth_date']
         read_only_fields = ['id']
+
+
+class PatientDetailSerializer(PatientSerializer):
+    class Meta(PatientSerializer.Meta):
+        fields = PatientSerializer.Meta.fields + ['relative_name', 'relative', 'phone_number']
         extra_kwargs = {
             'relative': {'required': False},
             'relative_name': {'required': False},

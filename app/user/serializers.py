@@ -2,7 +2,6 @@ from django.contrib.auth import get_user_model, authenticate
 
 from rest_framework import serializers
 
-
 from core.models import User
 
 
@@ -28,6 +27,19 @@ class UserSerializer(serializers.ModelSerializer):
             user.set_password(password)
             user.save()
         return user
+
+
+class UserDetailSerializer(UserSerializer):
+    class Meta(UserSerializer.Meta):
+        fields = UserSerializer.Meta.fields + ['address', 'phone_number']
+
+    def validate_phone_number(self, value):
+        if not value.isdigit() or len(value) < 10:
+            raise serializers.ValidationError("Please enter a valid phone number.")
+        return value
+
+
+
 
 
 class AuthTokenSerializer(serializers.Serializer):

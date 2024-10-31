@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.settings import api_settings
 
 from core.models import User
-from user.serializers import UserSerializer, AuthTokenSerializer
+from user.serializers import UserSerializer, UserDetailSerializer, AuthTokenSerializer
 
 def _check_permissions(request, code_name):
     user = request.user
@@ -17,10 +17,17 @@ def _check_permissions(request, code_name):
 
 
 class UserViewSet(viewsets.ModelViewSet):
-    serializer_class = UserSerializer
+    serializer_class = UserDetailSerializer
     queryset = User.objects.all().order_by('id')
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return UserSerializer
+
+        return self.serializer_class
+
 
     def perform_create(self, serializer):
         _check_permissions(self.request, 'add_user')
@@ -42,7 +49,6 @@ class UserViewSet(viewsets.ModelViewSet):
         _check_permissions(self.request, 'view_user')
         obj = super().get_object()
         return obj
-
 
 class CreateTokenView(ObtainAuthToken):
     serializer_class = AuthTokenSerializer

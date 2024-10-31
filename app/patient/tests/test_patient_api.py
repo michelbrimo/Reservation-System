@@ -11,7 +11,7 @@ from core.models import Role, Patient
 
 from django.core.management import call_command
 
-from patient.serializers import PatientSerializer
+from patient.serializers import PatientSerializer, PatientDetailSerializer
 
 PATIENT_URL = reverse('patient:patient-list')
 
@@ -25,7 +25,9 @@ def create_user(**params):
         'email': 'test@example.com',
         'password': 'testpass123',
         'name': 'Test name',
-        'role_id': Role.objects.get(name='Admin').id,
+        'role': Role.objects.get(name='Admin'),
+        'address': 'test address',
+        'phone_number': '1234567890',
     }
     user_details.update(params)
 
@@ -59,11 +61,11 @@ class PrivatePatientTest(TestCase):
     def setUp(self):
         call_command('seeder')
         self.client = APIClient()
-        self.user = create_user(email='admin@example.com', role_id=Role.objects.get(name='Admin').id)
+        self.user = create_user(email='admin@example.com', role=Role.objects.get(name='Admin'))
         self.client.force_authenticate(self.user)
 
     def _check_patient_data(self, patient, payload):
-        serializer = PatientSerializer(patient)
+        serializer = PatientDetailSerializer(patient)
 
         for key in payload.keys():
             if key == 'birth_date':
@@ -72,7 +74,7 @@ class PrivatePatientTest(TestCase):
                 self.assertEqual(payload[key], serializer.data[key])
 
     def test_crud_permission_denied(self):
-        doctor = create_user(role_id=Role.objects.get(name='Doctor').id)
+        doctor = create_user(role=Role.objects.get(name='Doctor'))
         self.client.force_authenticate(doctor)
 
         payload = {
@@ -167,7 +169,7 @@ class PrivatePatientTest(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
 
-        serializer = PatientSerializer(patient)
+        serializer = PatientDetailSerializer(patient)
 
         self.assertEqual(serializer.data, res.data)
 
@@ -182,7 +184,7 @@ class PrivatePatientTest(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         patient.refresh_from_db()
-        serializer = PatientSerializer(patient)
+        serializer = PatientDetailSerializer(patient)
 
         self.assertEqual(patient.name, payload['name'])
         self.assertEqual(serializer.data, res.data)
@@ -191,10 +193,10 @@ class PrivatePatientTest(TestCase):
         patient = create_patient(name='old name')
 
         payload = {
-            'name': 'new name',
-            'relative': 'new relative',
-            'relative_name': 'new relative name',
-            'phone_number': '888888888',
+            'name': 'patient name',
+            'relative': 'father',
+            'relative_name': 'test relative name',
+            'phone_number': '8888888888',
             'birth_date': date(2001, 12, 12)
         }
 
@@ -202,7 +204,7 @@ class PrivatePatientTest(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         patient.refresh_from_db()
-        serializer = PatientSerializer(patient)
+        serializer = PatientDetailSerializer(patient)
 
         self.assertEqual(res.data, serializer.data)
 
@@ -233,7 +235,7 @@ class PrivatePatientTest(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
 
         patient.refresh_from_db()
-        serializer = PatientSerializer(patient)
+        serializer = PatientDetailSerializer(patient)
         self.assertEqual(res.data, serializer.data)
 
     def test_update_patient_invalid_phone_number(self):

@@ -27,8 +27,6 @@ class UserManager(BaseUserManager):
         return user
 
     def create_superuser(self, email, password, **extra_fields):
-        extra_fields.setdefault('role_id', 1)
-        extra_fields.setdefault('name', "Admin")
         user = self.create_user(email, password, **extra_fields)
         user.is_staff = True
         user.is_superuser = True
@@ -47,6 +45,7 @@ class Patient(models.Model):
     def __str__(self):
         return self.name
 
+
 class Role(models.Model):
     name = models.CharField(max_length=255)
 
@@ -60,7 +59,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     role = models.ForeignKey(Role, on_delete=models.CASCADE)
-
+    address = models.CharField(max_length=255, default='')
+    phone_number = models.CharField(max_length=20, default='')
 
     objects = UserManager()
 
@@ -69,19 +69,16 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.email
 
-# class Appointment(models.Model):
-#     pass
 
-#
+class Reservation(models.Model):
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
+    doctor = models.ForeignKey(User, on_delete=models.CASCADE)
+    date = models.DateField()
+    time = models.TimeField()
+    description = models.TextField()
+    requirements = models.TextField(blank=True, null=True)
+    patient_reminder = models.TimeField(blank=True, null=True)
+    doctor_reminder = models.TimeField(blank=True, null=True)
 
-#
-#     def create_superuser(self, email, password):
-#         """Create and return a new superuser."""
-#         user = self.create_user(email, password)
-#         user.is_staff = True
-#         user.is_superuser = True
-#         user.save(using=self._db)
-#
-#         return user
-#
-#
+    def __str__(self):
+        return self.patient.name + ', ' + self.description

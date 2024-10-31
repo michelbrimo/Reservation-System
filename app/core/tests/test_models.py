@@ -1,9 +1,8 @@
-from datetime import date
+from datetime import date, time
 
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
-
 
 from core import models
 from core.models import Role
@@ -19,12 +18,14 @@ class ModelTests(TestCase):
         user = get_user_model().objects.create_user(
             email=email,
             password=password,
-            role_id=Role.objects.get(name='Admin').id,
+            role=Role.objects.get(name='Admin'),
+            address='test address',
+            phone_number='1234567890',
         )
 
         self.assertEqual(user.email, email)
         self.assertTrue(user.check_password(password))
-        self.assertEqual(user.role_id, Role.objects.get(name='Admin').id)
+        self.assertEqual(user.role, Role.objects.get(name='Admin'))
 
     def test_new_user_email_normalized(self):
         emails = [
@@ -38,7 +39,9 @@ class ModelTests(TestCase):
             user = get_user_model().objects.create_user(
                 email=email,
                 password=password,
-                role_id=Role.objects.get(name='Admin').id
+                role=Role.objects.get(name='Admin'),
+                address='test address',
+                phone_number='1234567890',
             )
             self.assertEqual(user.email, expected)
 
@@ -47,18 +50,22 @@ class ModelTests(TestCase):
             get_user_model().objects.create_user(
                 email='',
                 password='testpass123',
-                role_id=Role.objects.get(name='Admin').id
+                role=Role.objects.get(name='Admin'),
+                address='test address',
+                phone_number='1234567890',
             )
 
     def test_create_superuser(self):
         user = get_user_model().objects.create_superuser(
             email='test@example.com',
             password='testpass123',
-            role_id=Role.objects.get(name='Admin').id
+            role=Role.objects.get(name='Admin'),
+            address='test address',
+            phone_number='1234567890',
+            name='Admin'
         )
         self.assertTrue(user.is_superuser)
         self.assertTrue(user.is_staff)
-
 
     def test_create_patient_successfully(self):
         payload = {
@@ -70,6 +77,38 @@ class ModelTests(TestCase):
         }
 
         res = models.Patient.objects.create(**payload)
+
+        for key in payload.keys():
+            self.assertEqual(payload[key], getattr(res, key))
+
+    def test_create_reservation_successfully(self):
+        doctor = get_user_model().objects.create_user(
+            email='test@example.com',
+            password='testpass123',
+            role=Role.objects.get(name='Doctor'),
+            address='test address',
+            phone_number='1234567890',
+            name='Doctor'
+        )
+
+        patient = models.Patient.objects.create(
+            name='test patient',
+            phone_number='0123456789',
+            birth_date=date(2015, 7, 23),
+        )
+
+        payload = {
+            "patient_id": patient.id,
+            "doctor_id": doctor.id,
+            "date": date(2024, 7, 23),
+            "time": time(15, 0),
+            "description": 'teeth surgery',
+            "requirements": 'prepare the surgery tools',
+            "patient_reminder": time(10, 0),
+            "doctor_reminder": time(14, 30),
+        }
+
+        res = models.Reservation.objects.create(**payload)
 
         for key in payload.keys():
             self.assertEqual(payload[key], getattr(res, key))

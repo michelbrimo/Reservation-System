@@ -6,7 +6,7 @@ from rest_framework.test import APIClient
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 
-from user.serializers import UserSerializer
+from user.serializers import UserSerializer, UserDetailSerializer
 
 from core.models import Role
 from django.core.management import call_command
@@ -25,7 +25,9 @@ def create_user(**params):
         'email': 'test@example.com',
         'password': 'testpass123',
         'name': 'Test name',
-        'role_id': Role.objects.get(name='Admin').id,
+        'role': Role.objects.get(name='Admin'),
+        'address': 'test address',
+        'phone_number': '1234567890',
     }
     user_details.update(params)
 
@@ -45,7 +47,7 @@ class PublicUserTests(TestCase):
         user_details = {
             'email': 'test@example.com',
             'password': 'testpass123',
-            'role_id': Role.objects.get(name='Admin').id
+            'role': Role.objects.get(name='Admin')
         }
         create_user(**user_details)
 
@@ -74,7 +76,9 @@ class PublicUserTests(TestCase):
             'email': 'NoUser@example.com',
             'password': '',
             'name': 'Test name',
-            'role': Role.objects.get(name='Admin').id
+            'role': Role.objects.get(name='Admin').id,
+            'address': 'test address',
+            'phone_number': '1234567890',
         }
         res = self.client.post(TOKEN_URL, payload)
 
@@ -86,7 +90,7 @@ class PrivateUserTests(TestCase):
     def setUp(self):
         call_command('seeder')
         self.client = APIClient()
-        self.user = create_user(email='admin@example.com', role_id=Role.objects.get(name='Admin').id)
+        self.user = create_user(email='admin@example.com', role=Role.objects.get(name='Admin'))
         self.client.force_authenticate(user=self.user)
 
     def _change_client_user(self, **params):
@@ -99,26 +103,32 @@ class PrivateUserTests(TestCase):
             'password': 'testpass123',
             'name': 'Test name',
             'role': Role.objects.get(name='Doctor').id,
+            'address': 'test address',
+            'phone_number': '1234567890',
         }
 
-        res = self.client.post(USERS_URL, payload, format='json')
+        res = self.client.post(USERS_URL, payload)
 
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         user = get_user_model().objects.get(email=payload['email'])
         self.assertTrue(user.check_password(payload['password']))
         self.assertNotIn('password', res.data)
-        self.assertEqual(user.role_id, payload['role'])
+        self.assertEqual(user.role.id, payload['role'])
 
     def test_email_taken(self):
         payload = {
             'email': 'test@example.com',
             'password': 'testpass123',
             'name': 'test name',
-            'role_id': Role.objects.get(name='Admin').id
+            'role': Role.objects.get(name='Admin'),
+            'address': 'test address',
+            'phone_number': '1234567890',
         }
 
         create_user(**payload)
-        res = self.client.post(USERS_URL, payload, format='json')
+
+        payload['role'] = Role.objects.get(name='Admin').id
+        res = self.client.post(USERS_URL, payload)
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_create_user_short_passwords(self):
@@ -126,7 +136,9 @@ class PrivateUserTests(TestCase):
             'email': 'test@example.com',
             'password': 1234,
             'name': 'test name',
-            'role': Role.objects.get(name='Admin').id
+            'role': Role.objects.get(name='Admin').id,
+            'address': 'test address',
+            'phone_number': '1234567890',
         }
 
         res = self.client.post(USERS_URL, payload)
@@ -140,6 +152,8 @@ class PrivateUserTests(TestCase):
             'email': 'test@example.com',
             'password': 1234,
             'name': 'test name',
+            'address': 'test address',
+            'phone_number': '1234567890',
         }
 
         res = self.client.post(USERS_URL, payload)
@@ -148,6 +162,18 @@ class PrivateUserTests(TestCase):
         user = get_user_model().objects.filter(email=payload['email'])
         self.assertFalse(user.exists())
 
+    def test_create_user_invalid_number(self):
+        payload = {
+            'email': 'test@example.com',
+            'password': 1234,
+            'name': 'test name',
+            'address': 'test address',
+            'phone_number': '1234567890',
+        }
+
+        res = self.client.post(USERS_URL, payload)
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_get_all_users(self):
         user2 = create_user(email='test2@example.com')
@@ -166,7 +192,7 @@ class PrivateUserTests(TestCase):
 
     def test_get_my_profile(self):
         res = self.client.get(user_detail_url(self.user.id))
-        serializer = UserSerializer(self.user)
+        serializer = UserDetailSerializer(self.user)
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data, serializer.data)
@@ -175,7 +201,7 @@ class PrivateUserTests(TestCase):
         other_user = create_user(email='test@example.com')
 
         res = self.client.get(user_detail_url(other_user.id))
-        serializer = UserSerializer(other_user)
+        serializer = UserDetailSerializer(other_user)
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data, serializer.data)
@@ -203,7 +229,9 @@ class PrivateUserTests(TestCase):
             'email': "NewEmail@example.com",
             'password': "NewPass@123",
             'name': "New name",
-            'role': Role.objects.get(name='Admin').id
+            'role': Role.objects.get(name='Admin').id,
+            'address': 'test address',
+            'phone_number': '1234567890',
         }
 
         res = self.client.put(user_detail_url(other_user.id), payload)
@@ -211,17 +239,20 @@ class PrivateUserTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
 
         other_user.refresh_from_db()
-        serializer = UserSerializer(other_user)
+        serializer = UserDetailSerializer(other_user)
+        serializer = UserDetailSerializer(other_user)
         self.assertEqual(res.data, serializer.data)
 
     def test_create_user_permission_denied(self):
-        self._change_client_user(email='NotAdmin@example.com', role_id=Role.objects.get(name='Doctor').id)
+        self._change_client_user(email='NotAdmin@example.com', role=Role.objects.get(name='Doctor'))
 
         payload = {
             'email': 'test@example.com',
             'password': 'testpass123',
             'name': 'Test name',
             'role': Role.objects.get(name='Doctor').id,
+            'address': 'test address',
+            'phone_number': '1234567890',
         }
 
         res = self.client.post(USERS_URL, payload, format='json')
@@ -230,7 +261,7 @@ class PrivateUserTests(TestCase):
         self.assertFalse(user.exists())
 
     def test_update_user_permission_denied(self):
-        self._change_client_user(email='NotAdmin@example.com', role_id=Role.objects.get(name='Doctor').id)
+        self._change_client_user(email='NotAdmin@example.com', role=Role.objects.get(name='Doctor'))
 
         payload = {
             'name': 'New Name',
@@ -244,7 +275,7 @@ class PrivateUserTests(TestCase):
         self.assertNotEqual(user.name, payload['name'])
 
     def test_delete_user_permission_denied(self):
-        self._change_client_user(email='NotAdmin@example.com', role_id=Role.objects.get(name='Doctor').id)
+        self._change_client_user(email='NotAdmin@example.com', role=Role.objects.get(name='Doctor'))
 
         user = create_user()
 
@@ -254,13 +285,13 @@ class PrivateUserTests(TestCase):
         self.assertTrue(user.exists())
 
     def test_view_user_permission_denied(self):
-        self._change_client_user(email='NotAdmin@example.com', role_id=Role.objects.get(name='Doctor').id)
+        self._change_client_user(email='NotAdmin@example.com', role=Role.objects.get(name='Doctor'))
         res = self.client.get(USERS_URL)
 
         self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_view_user_details_permission_denied(self):
-        self._change_client_user(email='NotAdmin@example.com', role_id=Role.objects.get(name='Doctor').id)
+        self._change_client_user(email='NotAdmin@example.com', role=Role.objects.get(name='Doctor'))
         user = create_user()
 
         res = self.client.get(user_detail_url(user.id))

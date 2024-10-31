@@ -21,13 +21,16 @@ class Command(BaseCommand):
 
         self.add_user_api_permissions()
         self.add_patient_api_permissions()
+        self.add_reservations_api_permissions()
 
         # create super_user
         User.objects.create_superuser(
             email='superadmin123@example.com',
             password='goodpass123',
             name='Admin Name',
-            role=Role.objects.get(name='Admin')
+            role=Role.objects.get(name='Admin'),
+            address='test address',
+            phone_number='1234567890',
         )
 
     def add_user_api_permissions(self):
@@ -55,6 +58,33 @@ class Command(BaseCommand):
 
         patient_content_type = ContentType.objects.filter(app_label='core', model='patient').first()
         patient_permissions = Permission.objects.filter(content_type_id=patient_content_type.id)
+
+        give_admins_permissions()
+        give_doctors_permissions()
+        give_receptionist_permissions()
+
+    def add_reservations_api_permissions(self):
+        def give_admins_permissions():
+            filtered_permissions = reservation_permissions.exclude(codename__contains='view_his')
+            self.admins_group.permissions.add(*filtered_permissions)
+
+        def give_doctors_permissions():
+            filtered_permissions = reservation_permissions.exclude(codename__contains='view_reservation')
+            self.doctors_group.permissions.add(*filtered_permissions)
+
+        def give_receptionist_permissions():
+            filtered_permissions = reservation_permissions.exclude(codename__contains='view_his')
+            self.receptionist_group.permissions.add(*filtered_permissions)
+
+        reservation_content_type = ContentType.objects.filter(app_label='core', model='reservation').first()
+
+        Permission.objects.get_or_create(
+            content_type=reservation_content_type,
+            codename='view_his_reservations',
+            name='Can view his reservations',
+        )
+
+        reservation_permissions = Permission.objects.filter(content_type_id=reservation_content_type.id)
 
         give_admins_permissions()
         give_doctors_permissions()

@@ -4,7 +4,7 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 
 from core.models import Patient
-from patient.serializers import PatientSerializer
+from patient.serializers import PatientSerializer, PatientDetailSerializer
 
 
 def _check_permissions(request, code_name):
@@ -14,10 +14,16 @@ def _check_permissions(request, code_name):
         raise permissions.exceptions.PermissionDenied(f"You do not have permission to {code_name}.")
 
 class PatientViewSet(viewsets.ModelViewSet):
-    serializer_class = PatientSerializer
+    serializer_class = PatientDetailSerializer
     queryset = Patient.objects.all().order_by('id')
     authentication_classes = (TokenAuthentication,)
     permission_classes = (IsAuthenticated,)
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return PatientSerializer
+
+        return self.serializer_class
 
     def perform_create(self, serializer):
         _check_permissions(self.request, 'add_patient')
